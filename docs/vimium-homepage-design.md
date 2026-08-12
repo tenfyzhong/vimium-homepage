@@ -78,7 +78,7 @@ package.json                  devDependencies: @playwright/test; scripts.test
 .github/workflows/pages.yml   push main → configure-pages + upload-pages-artifact + deploy-pages (publishes site/)
 README.md                     English install/setup/usage guide
 .gitignore                    node_modules, tests/.cache, test-results, .DS_Store
-CLAUDE.md                     repo conventions (TDD, signed-off, no trailing whitespace)
+AGENTS.md                      repo conventions (TDD, signed-off, no trailing whitespace)
 docs/vimium-homepage-design.md  this document (coordinator-maintained; implementers must not modify)
 ```
 
@@ -132,6 +132,6 @@ Manual verification item (E2E cannot cover the address-bar focus path): in real 
 - step 3: `site/index.html` (design page + embedding logic)
 - step 4: `.github/workflows/pages.yml` (YAML syntax check)
 - step 5: E2E all green (`npm test`, stock vimium, no patches)
-- step 6: `README.md` / `.gitignore` / `CLAUDE.md` → signed-off commit (`git commit -s`)
+- step 6: `README.md` / `.gitignore` / `AGENTS.md` → signed-off commit (`git commit -s`)
 
 final checks: `npm test` all 12 pass; manifest loads without errors; `site/index.html` zero-external-request grep check; canonical URL logic present; MutationObserver present; workflow YAML valid; commits include Signed-off-by.

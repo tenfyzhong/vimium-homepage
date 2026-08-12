@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 Repository conventions (all agents must follow):
 
