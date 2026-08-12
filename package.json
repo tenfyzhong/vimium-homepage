@@ -2,7 +2,7 @@
   "name": "vimium-homepage",
   "version": "1.0.0",
   "private": true,
-  "description": "Vimium Homepage: dark terminal new tab page embedding the Vimium Vomnibar.",
+  "description": "Vimium Homepage: system-themed new tab page for Vimium users (native Vomnibar, press o).",
   "scripts": {
     "test": "playwright test"
   },

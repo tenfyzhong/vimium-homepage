@@ -28,7 +28,7 @@ See `AGENTS.md` for the full list; the essentials:
 
 ## Testing
 
-- The E2E suite (`npm test`) asserts 12 observable contracts: extension loading, new-tab redirect, dark-theme rendering, Vomnibar summon/embedding/focus/navigation/Esc, zero external requests, quick-link persistence, canonical-URL enforcement, and unsafe-scheme rejection.
+- The E2E suite (`npm test`) asserts 12 observable contracts: extension loading, new-tab redirect, system-theme rendering (light and dark), native Vomnibar summon/focus/navigation/Esc, zero external requests, quick-link persistence, canonical-URL enforcement, and unsafe-scheme rejection.
 - The suite launches Playwright's bundled Chromium with both extensions loaded; branded Chrome 137+ removed `--load-extension` and cannot be used for automation.
 - Before submitting, run `npm test` locally and confirm all 12 pass.
 

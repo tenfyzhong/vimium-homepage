@@ -6,9 +6,8 @@
   <title>Vimium Homepage</title>
   <link rel="icon" href="data:,">
   <script>
-    // Early head script: canonical-URL enforcement + Vomnibar embedding.
-    // Runs before vimium's UI component is lazily created so the MutationObserver
-    // catches div.vimium-reset as soon as vimium appends it to <html>.
+    // Early head script: canonical-URL enforcement only. The Vomnibar is vimium's
+    // native UI (summoned with o); the page never touches vimium's DOM.
     (function () {
       'use strict';
 
@@ -25,123 +24,11 @@
         window.location.replace(pathname + '/');
         return;
       }
-
-      // ---- Vomnibar / HUD embedding --------------------------------------
-      // vimium renders its UI inside OPEN shadow roots (div.vimium-reset).
-      // Page CSS cannot pierce shadow DOM, so inject a <style> into each shadow
-      // root (idempotent) that repositions the iframes into the design slot via
-      // CSS custom properties defined on :root, which pierce the boundary.
-      // NOTE: the selectors must be shadow-tree scoped (the host div.vimium-reset
-      // is NOT an ancestor of the iframe inside its own shadow root).
-      var VOMNIBAR_IFRAME_SELECTOR = 'iframe.vomnibar-frame';
-      var HUD_IFRAME_SELECTOR = 'iframe.vimium-hud-frame';
-      var injectedRoots = new WeakSet();
-      var slotObservers = new WeakSet();
-      var slotEl = null;
-
-      var VOMNIBAR_STYLE = [
-        'iframe.vomnibar-frame {',
-        '  box-sizing: border-box !important;',
-        '  position: fixed !important;',
-        '  top: var(--vomnibar-top) !important;',
-        '  left: calc(50% - var(--vomnibar-width) / 2) !important;',
-        '  width: var(--vomnibar-width) !important;',
-        '  min-width: 0 !important;',
-        '  height: var(--vomnibar-height) !important;',
-        '  margin: 0 !important;',
-        '  border: var(--vomnibar-border) !important;',
-        '  border-radius: var(--vomnibar-radius) !important;',
-        '  background: var(--vomnibar-bg) !important;',
-        '  box-shadow: var(--vomnibar-shadow) !important;',
-        // Force the embedded document's preferred color scheme to dark so vimium's
-        // internal vomnibar page renders with its dark palette.
-        '  color-scheme: dark !important;',
-        '  z-index: 2147483647 !important;',
-        '}'
-      ].join('\n');
-
-      var HUD_STYLE = [
-        'iframe.vimium-hud-frame {',
-        '  box-sizing: border-box !important;',
-        '  position: fixed !important;',
-        '  top: auto !important;',
-        '  left: auto !important;',
-        '  bottom: 24px !important;',
-        '  right: 24px !important;',
-        '  width: 340px !important;',
-        '  min-width: 0 !important;',
-        '  height: 32px !important;',
-        '  margin: 0 !important;',
-        '  border: 1px solid var(--vomnibar-border) !important;',
-        '  border-radius: 6px !important;',
-        '  background: var(--vomnibar-bg) !important;',
-        '  opacity: 1 !important;',
-        '  z-index: 2147483647 !important;',
-        '}'
-      ].join('\n');
-
-      function updateSlotHint(shadowRoot) {
-        if (!slotEl) {
-          slotEl = document.getElementById('vomnibar-slot');
-        }
-        var frame = shadowRoot.querySelector(VOMNIBAR_IFRAME_SELECTOR);
-        if (!slotEl || !frame) {
-          return;
-        }
-        slotEl.classList.toggle(
-          'vomnibar-open',
-          frame.classList.contains('vimium-ui-component-visible')
-        );
-      }
-
-      function watchSlotHint(shadowRoot) {
-        if (slotObservers.has(shadowRoot)) {
-          return;
-        }
-        var observer = new MutationObserver(function () {
-          updateSlotHint(shadowRoot);
-        });
-        observer.observe(shadowRoot, {
-          childList: true,
-          subtree: true,
-          attributes: true,
-          attributeFilter: ['class']
-        });
-        slotObservers.add(shadowRoot);
-        updateSlotHint(shadowRoot);
-      }
-
-      function injectEmbedStyle(shadowRoot) {
-        if (injectedRoots.has(shadowRoot)) {
-          return;
-        }
-        var style = document.createElement('style');
-        style.textContent = VOMNIBAR_STYLE + '\n' + HUD_STYLE;
-        shadowRoot.appendChild(style);
-        injectedRoots.add(shadowRoot);
-        watchSlotHint(shadowRoot);
-      }
-
-      function scanForVimiumUI() {
-        var wrappers = document.documentElement.querySelectorAll('div.vimium-reset');
-        for (var i = 0; i < wrappers.length; i++) {
-          var shadowRoot = wrappers[i].shadowRoot;
-          if (shadowRoot) {
-            injectEmbedStyle(shadowRoot);
-          }
-        }
-      }
-
-      slotEl = document.getElementById('vomnibar-slot');
-      scanForVimiumUI();
-      var observer = new MutationObserver(scanForVimiumUI);
-      observer.observe(document.documentElement, { childList: true });
-
     })();
   </script>
   <style>
     :root {
-      color-scheme: dark;
+      color-scheme: light dark;
       --bg: #0b0e14;
       --panel: #12161f;
       --text: #e6e6e6;
@@ -150,14 +37,45 @@
       --green: #00e5a0;
       --divider: rgba(230, 230, 230, 0.08);
       --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
-      --vomnibar-top: 200px;
-      --vomnibar-width: min(720px, 88vw);
-      --vomnibar-height: 56px;
-      --vomnibar-radius: 10px;
-      --vomnibar-border: 1px solid rgba(255, 176, 0, 0.35);
-      --vomnibar-bg: #12161f;
-      --vomnibar-shadow: 0 10px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 229, 160, 0.10), 0 0 24px rgba(255, 176, 0, 0.06);
-      --slot-z: 2147483646;
+    }
+
+    /* light scheme: warm paper, applied when the system prefers light */
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f4f1ea;
+        --panel: #ffffff;
+        --text: #1a1d23;
+        --weak: #6b7280;
+        --amber: #b45309;
+        --green: #047857;
+        --divider: rgba(26, 29, 23, 0.10);
+      }
+
+      /* tone the atmosphere down so the paper scheme stays quiet and AA */
+      body::before {
+        opacity: 0.18;
+      }
+
+      body::after {
+        background: radial-gradient(ellipse at center, rgba(180, 83, 9, 0.04), rgba(4, 120, 87, 0.02) 45%, transparent 70%);
+      }
+
+      .link-card:hover {
+        border-color: rgba(180, 83, 9, 0.35);
+      }
+
+      #add-link-button:hover {
+        border-color: rgba(4, 120, 87, 0.4);
+      }
+
+      #link-save-button {
+        color: #ffffff;
+      }
+
+      .link-delete:hover {
+        color: #dc2626;
+        border-color: #dc2626;
+      }
     }
 
     * {
@@ -247,49 +165,9 @@
       text-indent: 0.34em;
     }
 
-    /* the design slot the embedded Vomnibar is repositioned into */
-    #vomnibar-slot {
-      position: fixed;
-      top: var(--vomnibar-top);
-      left: 50%;
-      transform: translateX(-50%);
-      width: var(--vomnibar-width);
-      height: var(--vomnibar-height);
-      z-index: var(--slot-z);
-      display: flex;
-      align-items: center;
-      padding: 0 18px;
-      border: var(--vomnibar-border);
-      border-radius: var(--vomnibar-radius);
-      background: var(--vomnibar-bg);
-      box-shadow: var(--vomnibar-shadow);
-      animation: vh-slot-in 0.5s ease-out both, vh-breathe 4s ease-in-out 0.5s infinite;
-    }
-
-    #vomnibar-slot .caret {
-      width: 8px;
-      height: 18px;
-      background: var(--amber);
-      opacity: 0.85;
-      margin-right: 12px;
-      flex: none;
-      animation: vh-blink 1s steps(1) infinite;
-    }
-
-    #vomnibar-slot .placeholder {
-      color: var(--weak);
-      font-size: 14px;
-      letter-spacing: 0.08em;
-      transition: opacity 0.3s ease;
-    }
-
-    #vomnibar-slot.vomnibar-open .placeholder {
-      opacity: 0;
-    }
-
     .links-wrap {
-      max-width: var(--vomnibar-width);
-      margin: calc(var(--vomnibar-top) + var(--vomnibar-height) + 48px) auto 0;
+      max-width: min(720px, 88vw);
+      margin: 48px auto 0;
       padding: 0 24px;
     }
 
@@ -444,7 +322,7 @@
     }
 
     footer {
-      max-width: var(--vomnibar-width);
+      max-width: min(720px, 88vw);
       margin: 48px auto 0;
       padding: 0 24px;
       text-align: center;
@@ -462,15 +340,6 @@
       }
     }
 
-    @keyframes vh-breathe {
-      0%, 100% {
-        box-shadow: var(--vomnibar-shadow);
-      }
-      50% {
-        box-shadow: 0 10px 44px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 176, 0, 0.18), 0 0 30px rgba(255, 176, 0, 0.10);
-      }
-    }
-
     @keyframes vh-reveal {
       from {
         opacity: 0;
@@ -479,17 +348,6 @@
       to {
         opacity: 1;
         transform: none;
-      }
-    }
-
-    @keyframes vh-slot-in {
-      from {
-        opacity: 0;
-        transform: translateX(-50%) translateY(8px);
-      }
-      to {
-        opacity: 1;
-        transform: translateX(-50%);
       }
     }
 
@@ -520,10 +378,6 @@
       <div id="greeting"></div>
     </header>
 
-    <div id="vomnibar-slot">
-      <span class="placeholder">Press o to search</span>
-    </div>
-
     <section class="links-wrap">
       <h2 class="links-title">Quick Links</h2>
       <div id="quick-links"></div>
@@ -536,7 +390,7 @@
     </section>
 
     <footer>
-      <span id="footer-hint">vimium-homepage · embedded Vimium Vomnibar · press o</span>
+      <span id="footer-hint">vimium-homepage · press o for the Vomnibar</span>
     </footer>
   </main>
 

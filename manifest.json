@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Vimium Homepage",
   "version": "1.0.0",
-  "description": "Dark terminal-style new tab page: instant loading, embeds the Vimium Vomnibar (press o).",
+  "description": "System-themed new tab page: instant loading, works with Vimium's native Vomnibar (press o).",
   "chrome_url_overrides": {
     "newtab": "redirect.html"
   },

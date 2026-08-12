@@ -13,7 +13,6 @@ const CACHE_DIR = path.join(__dirname, '.cache');
 const VIMIUM_DIR = path.join(CACHE_DIR, 'vimium-2.4.2');
 const VIMIUM_ZIP = path.join(CACHE_DIR, 'vimium-2.4.2.zip');
 const VIMIUM_URL = 'https://codeload.github.com/philc/vimium/zip/refs/tags/v2.4.2';
-const SLOT_TOP_MIN = 200;
 
 let server;
 let port;
@@ -315,76 +314,84 @@ test.describe('vimium-homepage newtab e2e', () => {
     await p.close();
   });
 
-  test('3. dark-terminal-aesthetic-renders', async () => {
+  test('3. system-theme-renders', async () => {
     const p = await openNewTab();
     for (const sel of ['#clock', '#greeting', '#quick-links']) {
       await expect(p.locator(sel)).toHaveCount(1);
     }
-    const bg = await p.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(bg).toBe('rgb(11, 14, 20)');
+    const scheme = await p.evaluate(() => getComputedStyle(document.documentElement).colorScheme);
+    expect(scheme).toBe('light dark');
+    await p.emulateMedia({ colorScheme: 'dark' });
+    await expect
+      .poll(() => p.evaluate(() => getComputedStyle(document.body).backgroundColor), { timeout: 10000 })
+      .toBe('rgb(11, 14, 20)');
+    await p.emulateMedia({ colorScheme: 'light' });
+    await expect
+      .poll(() => p.evaluate(() => getComputedStyle(document.body).backgroundColor), { timeout: 10000 })
+      .toBe('rgb(244, 241, 234)');
     await p.close();
   });
 
-  test('4. vomnibar-summoned: lazy creation, then "o" summons it into the page', async () => {
+  test('4. native-vomnibar-summoned', async () => {
     const p = await openNewTab();
-    // Lazy creation: no vimium UI exists until the user summons it.
-    const initial = await p.evaluate(() => {
-      let iframeCount = 0;
-      for (const div of document.querySelectorAll('div.vimium-reset')) {
-        const sr = div.shadowRoot;
-        if (sr && sr.querySelector('iframe.vomnibar-frame')) {
-          iframeCount += 1;
-        }
-      }
-      return { divs: document.querySelectorAll('div.vimium-reset').length, iframeCount };
-    });
-    expect(initial.divs).toBe(0);
-    expect(initial.iframeCount).toBe(0);
-    // Stock vimium: press "o" to summon the Vomnibar.
+    // Lazy creation: zero vimium UI exists until the user summons it.
+    const initialDivs = await p.evaluate(() => document.querySelectorAll('div.vimium-reset').length);
+    expect(initialDivs).toBe(0);
+    // Stock vimium: press "o" to summon the native Vomnibar.
     await summonVomnibar(p);
     const info = await p.evaluate(() => {
       const divs = document.querySelectorAll('div.vimium-reset');
+      const out = { visible: false, box: null, styles: [] };
       for (const div of divs) {
         const sr = div.shadowRoot;
         if (!sr) {
           continue;
         }
         const f = sr.querySelector('iframe.vomnibar-frame');
-        if (f) {
-          return {
-            hasShadowRoot: true,
-            iframeSrc: f.getAttribute('src'),
-            classes: f.className
-          };
+        if (f && f.classList.contains('vimium-ui-component-visible')) {
+          out.visible = true;
+          const r = f.getBoundingClientRect();
+          out.box = { x: r.x, y: r.y, width: r.width, height: r.height };
         }
+        const styles = sr.querySelectorAll('style');
+        out.styles.push({
+          count: styles.length,
+          hasVomnibarVar: Array.from(styles).some((s) => s.textContent.includes('--vomnibar-'))
+        });
       }
-      return null;
+      return {
+        ...out,
+        slotEl: document.getElementById('vomnibar-slot') !== null,
+        vomnibarTop: getComputedStyle(document.documentElement).getPropertyValue('--vomnibar-top').trim()
+      };
     });
-    expect(info).not.toBeNull();
-    expect(info.hasShadowRoot).toBe(true);
-    expect(info.classes).toContain('vimium-ui-component-visible');
-    await p.close();
-  });
-
-  test('5. vomnibar-in-embedding-slot', async () => {
-    const p = await openNewTab();
-    await summonVomnibar(p);
-    const box = await p.locator('div.vimium-reset iframe.vomnibar-frame').boundingBox();
-    expect(box).not.toBeNull();
-    expect(box.y).toBeGreaterThanOrEqual(SLOT_TOP_MIN);
+    expect(info.visible).toBe(true);
+    // Native geometry: vimium's own stylesheet fixes the Vomnibar at top:70px, centered.
+    expect(info.box).not.toBeNull();
+    expect(info.box.y).toBeGreaterThanOrEqual(68);
+    expect(info.box.y).toBeLessThanOrEqual(72);
     const viewport = p.viewportSize();
-    const center = box.x + box.width / 2;
+    const center = info.box.x + info.box.width / 2;
     expect(Math.abs(center - viewport.width / 2)).toBeLessThan(60);
+    // Zero injected styles: every vimium shadow root contains exactly its own single
+    // <style>, none of which reference --vomnibar-*; no page slot or vars remain.
+    expect(info.styles.length).toBeGreaterThan(0);
+    for (const s of info.styles) {
+      expect(s.count).toBe(1);
+      expect(s.hasVomnibarVar).toBe(false);
+    }
+    expect(info.slotEl).toBe(false);
+    expect(info.vomnibarTop).toBe('');
     await p.close();
   });
 
-  test('6. vomnibar-input-focused', async () => {
+  test('5. vomnibar-input-focused', async () => {
     const p = await openNewTab();
     await summonVomnibar(p, { focused: true });
     await p.close();
   });
 
-  test('7. type-and-navigate', async () => {
+  test('6. type-and-navigate', async () => {
     const p = await openNewTab();
     await summonVomnibar(p, { focused: true });
     const target = `${LOCAL_URL}nav-test`;
@@ -398,7 +405,7 @@ test.describe('vimium-homepage newtab e2e', () => {
     await p.close();
   });
 
-  test('8. esc-closes-vomnibar', async () => {
+  test('7. esc-closes-vomnibar', async () => {
     const p = await openNewTab();
     await summonVomnibar(p);
     await p.keyboard.press('Escape');
@@ -419,7 +426,7 @@ test.describe('vimium-homepage newtab e2e', () => {
     await p.close();
   });
 
-  test('9. zero-external-requests', async () => {
+  test('8. zero-external-requests', async () => {
     const p = await context.newPage();
     const external = [];
     const onRequest = (req) => {
@@ -441,7 +448,7 @@ test.describe('vimium-homepage newtab e2e', () => {
     await p.close();
   });
 
-  test('10. quick-links-persist', async () => {
+  test('9. quick-links-persist', async () => {
     const p = await openNewTab();
     await p.evaluate(() => localStorage.clear());
     await p.click('#add-link-button');
@@ -462,14 +469,14 @@ test.describe('vimium-homepage newtab e2e', () => {
     await p.close();
   });
 
-  test('11. canonical-url-enforcement', async () => {
+  test('10. canonical-url-enforcement', async () => {
     const p = await openNewTab();
     await p.goto(`${LOCAL_URL}index.html`, { waitUntil: 'commit', timeout: 10000 }).catch(() => {});
     await p.waitForURL(isLocalRoot, { timeout: 15000 });
     expect(p.url()).toBe(LOCAL_URL);
     await p.close();
   });
-  test('12. unsafe-link-schemes-rejected', async () => {
+  test('11. unsafe-link-schemes-rejected', async () => {
     const p = await openNewTab();
     await p.evaluate(() => localStorage.clear());
     // write-path: javascript: URLs are rejected by the save handler
@@ -491,6 +498,35 @@ test.describe('vimium-homepage newtab e2e', () => {
     await p.reload();
     await expect(p.locator('.link-card', { hasText: 'Poisoned' })).toHaveCount(0);
     await expect(p.locator('.link-card', { hasText: 'Ok' })).toHaveCount(1);
+    await p.close();
+  });
+
+  test('12. splash-follows-system-theme', async () => {
+    const p = await context.newPage();
+    // redirect.js performs location.replace(targetUrl); abort those navigations so
+    // the splash stays put and its computed theme can be asserted.
+    await p.route(`${LOCAL_URL}**`, (route) => route.abort());
+    // Fallback: if chrome.storage.sync is unavailable on this page, stub its get
+    // with a no-op callback so redirect.js cannot navigate away (page-scoped only).
+    await p.addInitScript(() => {
+      try {
+        chrome.storage.sync.get = () => {};
+      } catch (e) {
+        // chrome.storage absent; redirect.js will fail to navigate on its own
+      }
+    });
+    await p.goto(`chrome-extension://${ourId}/redirect.html`, {
+      waitUntil: 'commit',
+      timeout: 15000
+    }).catch(() => {});
+    await p.emulateMedia({ colorScheme: 'light' });
+    await expect
+      .poll(() => p.evaluate(() => getComputedStyle(document.body).backgroundColor), { timeout: 10000 })
+      .toBe('rgb(244, 241, 234)');
+    await p.emulateMedia({ colorScheme: 'dark' });
+    await expect
+      .poll(() => p.evaluate(() => getComputedStyle(document.body).backgroundColor), { timeout: 10000 })
+      .toBe('rgb(11, 14, 20)');
     await p.close();
   });
 });

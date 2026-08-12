@@ -5,14 +5,31 @@
   <title>Vimium Homepage</title>
   <style>
     :root {
-      color-scheme: dark;
+      color-scheme: light dark;
       --bg: #0b0e14;
       --panel: #12161f;
       --text: #e6e6e6;
       --weak: #8b93a7;
       --amber: #ffb000;
       --green: #00e5a0;
+      --divider: rgba(230, 230, 230, 0.08);
       --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+    }
+
+    /* light scheme: warm paper splash, applied when the system prefers light */
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f4f1ea;
+        --panel: #ffffff;
+        --text: #1a1d23;
+        --weak: #6b7280;
+        --amber: #b45309;
+        --green: #047857;
+        --divider: rgba(26, 29, 23, 0.10);
+      }
+      .splash .bar {
+        background: rgba(26, 29, 23, 0.08);
+      }
     }
     * {
       box-sizing: border-box;
