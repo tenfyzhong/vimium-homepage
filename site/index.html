@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vimium Homepage</title>
+  <link rel="icon" href="data:,">
+  <script>
+    // Early head script: canonical-URL enforcement + Vomnibar embedding.
+    // Runs before vimium's UI component is lazily created so the MutationObserver
+    // catches div.vimium-reset as soon as vimium appends it to <html>.
+    (function () {
+      'use strict';
+
+      // ---- canonical URL enforcement -------------------------------------
+      // Keep the final href canonical (URL hygiene): /index.html -> ./ and
+      // paths without a trailing slash get one appended.
+      var pathname = window.location.pathname;
+      if (/\/index\.html$/.test(pathname)) {
+        window.location.replace('./');
+        return;
+      }
+      var lastSegment = pathname.slice(pathname.lastIndexOf('/') + 1);
+      if (pathname.length > 1 && !pathname.endsWith('/') && lastSegment.indexOf('.') === -1) {
+        window.location.replace(pathname + '/');
+        return;
+      }
+
+      // ---- Vomnibar / HUD embedding --------------------------------------
+      // vimium renders its UI inside OPEN shadow roots (div.vimium-reset).
+      // Page CSS cannot pierce shadow DOM, so inject a <style> into each shadow
+      // root (idempotent) that repositions the iframes into the design slot via
+      // CSS custom properties defined on :root, which pierce the boundary.
+      // NOTE: the selectors must be shadow-tree scoped (the host div.vimium-reset
+      // is NOT an ancestor of the iframe inside its own shadow root).
+      var VOMNIBAR_IFRAME_SELECTOR = 'iframe.vomnibar-frame';
+      var HUD_IFRAME_SELECTOR = 'iframe.vimium-hud-frame';
+      var injectedRoots = new WeakSet();
+      var slotObservers = new WeakSet();
+      var slotEl = null;
+
+      var VOMNIBAR_STYLE = [
+        'iframe.vomnibar-frame {',
+        '  box-sizing: border-box !important;',
+        '  position: fixed !important;',
+        '  top: var(--vomnibar-top) !important;',
+        '  left: calc(50% - var(--vomnibar-width) / 2) !important;',
+        '  width: var(--vomnibar-width) !important;',
+        '  min-width: 0 !important;',
+        '  height: var(--vomnibar-height) !important;',
+        '  margin: 0 !important;',
+        '  border: var(--vomnibar-border) !important;',
+        '  border-radius: var(--vomnibar-radius) !important;',
+        '  background: var(--vomnibar-bg) !important;',
+        '  box-shadow: var(--vomnibar-shadow) !important;',
+        // Force the embedded document's preferred color scheme to dark so vimium's
+        // internal vomnibar page renders with its dark palette.
+        '  color-scheme: dark !important;',
+        '  z-index: 2147483647 !important;',
+        '}'
+      ].join('\n');
+
+      var HUD_STYLE = [
+        'iframe.vimium-hud-frame {',
+        '  box-sizing: border-box !important;',
+        '  position: fixed !important;',
+        '  top: auto !important;',
+        '  left: auto !important;',
+        '  bottom: 24px !important;',
+        '  right: 24px !important;',
+        '  width: 340px !important;',
+        '  min-width: 0 !important;',
+        '  height: 32px !important;',
+        '  margin: 0 !important;',
+        '  border: 1px solid var(--vomnibar-border) !important;',
+        '  border-radius: 6px !important;',
+        '  background: var(--vomnibar-bg) !important;',
+        '  opacity: 1 !important;',
+        '  z-index: 2147483647 !important;',
+        '}'
+      ].join('\n');
+
+      function updateSlotHint(shadowRoot) {
+        if (!slotEl) {
+          slotEl = document.getElementById('vomnibar-slot');
+        }
+        var frame = shadowRoot.querySelector(VOMNIBAR_IFRAME_SELECTOR);
+        if (!slotEl || !frame) {
+          return;
+        }
+        slotEl.classList.toggle(
+          'vomnibar-open',
+          frame.classList.contains('vimium-ui-component-visible')
+        );
+      }
+
+      function watchSlotHint(shadowRoot) {
+        if (slotObservers.has(shadowRoot)) {
+          return;
+        }
+        var observer = new MutationObserver(function () {
+          updateSlotHint(shadowRoot);
+        });
+        observer.observe(shadowRoot, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['class']
+        });
+        slotObservers.add(shadowRoot);
+        updateSlotHint(shadowRoot);
+      }
+
+      function injectEmbedStyle(shadowRoot) {
+        if (injectedRoots.has(shadowRoot)) {
+          return;
+        }
+        var style = document.createElement('style');
+        style.textContent = VOMNIBAR_STYLE + '\n' + HUD_STYLE;
+        shadowRoot.appendChild(style);
+        injectedRoots.add(shadowRoot);
+        watchSlotHint(shadowRoot);
+      }
+
+      function scanForVimiumUI() {
+        var wrappers = document.documentElement.querySelectorAll('div.vimium-reset');
+        for (var i = 0; i < wrappers.length; i++) {
+          var shadowRoot = wrappers[i].shadowRoot;
+          if (shadowRoot) {
+            injectEmbedStyle(shadowRoot);
+          }
+        }
+      }
+
+      slotEl = document.getElementById('vomnibar-slot');
+      scanForVimiumUI();
+      var observer = new MutationObserver(scanForVimiumUI);
+      observer.observe(document.documentElement, { childList: true });
+
+    })();
+  </script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0e14;
+      --panel: #12161f;
+      --text: #e6e6e6;
+      --weak: #8b93a7;
+      --amber: #ffb000;
+      --green: #00e5a0;
+      --divider: rgba(230, 230, 230, 0.08);
+      --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+      --vomnibar-top: 200px;
+      --vomnibar-width: min(720px, 88vw);
+      --vomnibar-height: 56px;
+      --vomnibar-radius: 10px;
+      --vomnibar-border: 1px solid rgba(255, 176, 0, 0.35);
+      --vomnibar-bg: #12161f;
+      --vomnibar-shadow: 0 10px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 229, 160, 0.10), 0 0 24px rgba(255, 176, 0, 0.06);
+      --slot-z: 2147483646;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* subtle film grain, tiled inline PNG (zero external requests) */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAJklEQVR42mP4//8/OxLmZgASwkDMhizADxXkAWJemIAgEAsBMR8Ah8Uwl+jg3VcAAAAASUVORK5CYII=");
+      background-repeat: repeat;
+      opacity: 0.55;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* top gradient glow */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -32%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 130vw;
+      height: 72vh;
+      background: radial-gradient(ellipse at center, rgba(255, 176, 0, 0.05), rgba(0, 229, 160, 0.03) 45%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    main {
+      position: relative;
+      z-index: 1;
+      padding-bottom: 40px;
+    }
+
+    .hero {
+      height: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    #clock {
+      font-size: clamp(64px, 15vw, 120px);
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      color: var(--text);
+      text-shadow: 0 0 32px rgba(255, 176, 0, 0.12);
+    }
+
+    #clock .colon {
+      color: var(--amber);
+      animation: vh-blink 1s steps(1) infinite;
+    }
+
+    #date-line {
+      color: var(--weak);
+      font-size: 13px;
+      letter-spacing: 0.12em;
+    }
+
+    #greeting {
+      color: var(--green);
+      font-size: 15px;
+      letter-spacing: 0.34em;
+      text-indent: 0.34em;
+    }
+
+    /* the design slot the embedded Vomnibar is repositioned into */
+    #vomnibar-slot {
+      position: fixed;
+      top: var(--vomnibar-top);
+      left: 50%;
+      transform: translateX(-50%);
+      width: var(--vomnibar-width);
+      height: var(--vomnibar-height);
+      z-index: var(--slot-z);
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      border: var(--vomnibar-border);
+      border-radius: var(--vomnibar-radius);
+      background: var(--vomnibar-bg);
+      box-shadow: var(--vomnibar-shadow);
+      animation: vh-slot-in 0.5s ease-out both, vh-breathe 4s ease-in-out 0.5s infinite;
+    }
+
+    #vomnibar-slot .caret {
+      width: 8px;
+      height: 18px;
+      background: var(--amber);
+      opacity: 0.85;
+      margin-right: 12px;
+      flex: none;
+      animation: vh-blink 1s steps(1) infinite;
+    }
+
+    #vomnibar-slot .placeholder {
+      color: var(--weak);
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      transition: opacity 0.3s ease;
+    }
+
+    #vomnibar-slot.vomnibar-open .placeholder {
+      opacity: 0;
+    }
+
+    .links-wrap {
+      max-width: var(--vomnibar-width);
+      margin: calc(var(--vomnibar-top) + var(--vomnibar-height) + 48px) auto 0;
+      padding: 0 24px;
+    }
+
+    .links-title {
+      margin: 0 0 16px;
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--weak);
+      letter-spacing: 0.2em;
+    }
+
+    #quick-links {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+    }
+
+    .link-card {
+      position: relative;
+      display: block;
+      padding: 14px;
+      background: var(--panel);
+      border: 1px solid var(--divider);
+      border-radius: 10px;
+      color: var(--text);
+      text-decoration: none;
+      transition: border-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .link-card:hover {
+      border-color: rgba(255, 176, 0, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .link-card .link-label {
+      display: block;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      color: var(--text);
+    }
+
+    .link-card .link-host {
+      display: block;
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--weak);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .link-card .link-actions {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      gap: 6px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .link-card:hover .link-actions {
+      opacity: 1;
+    }
+
+    .link-edit,
+    .link-delete {
+      padding: 2px 6px;
+      background: none;
+      border: 1px solid var(--divider);
+      border-radius: 4px;
+      color: var(--weak);
+      font-family: var(--mono);
+      font-size: 10px;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+
+    .link-edit:hover {
+      color: var(--green);
+      border-color: var(--green);
+    }
+
+    .link-delete:hover {
+      color: #ff5f56;
+      border-color: #ff5f56;
+    }
+
+    #add-link-button {
+      padding: 14px;
+      background: transparent;
+      border: 1px dashed var(--divider);
+      border-radius: 10px;
+      color: var(--weak);
+      font-family: var(--mono);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+    }
+
+    #add-link-button:hover {
+      color: var(--green);
+      border-color: rgba(0, 229, 160, 0.4);
+    }
+
+    #link-form {
+      display: none;
+      margin-top: 14px;
+      gap: 10px;
+    }
+
+    #link-form.open {
+      display: flex;
+    }
+
+    #link-label-input,
+    #link-url-input {
+      flex: 1;
+      min-width: 0;
+      padding: 10px 12px;
+      background: var(--bg);
+      border: 1px solid var(--divider);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    #link-label-input:focus,
+    #link-url-input:focus {
+      outline: none;
+      border-color: var(--amber);
+    }
+
+    #link-save-button,
+    #link-cancel-button {
+      padding: 10px 16px;
+      background: var(--panel);
+      border: 1px solid var(--divider);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    #link-save-button {
+      background: var(--green);
+      border-color: var(--green);
+      color: #06120d;
+      font-weight: 700;
+    }
+
+    footer {
+      max-width: var(--vomnibar-width);
+      margin: 48px auto 0;
+      padding: 0 24px;
+      text-align: center;
+      color: var(--weak);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+    }
+
+    @keyframes vh-blink {
+      0%, 49% {
+        opacity: 1;
+      }
+      50%, 100% {
+        opacity: 0.15;
+      }
+    }
+
+    @keyframes vh-breathe {
+      0%, 100% {
+        box-shadow: var(--vomnibar-shadow);
+      }
+      50% {
+        box-shadow: 0 10px 44px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 176, 0, 0.18), 0 0 30px rgba(255, 176, 0, 0.10);
+      }
+    }
+
+    @keyframes vh-reveal {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    @keyframes vh-slot-in {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%);
+      }
+    }
+
+    .hero {
+      animation: vh-reveal 0.5s ease-out both;
+    }
+
+    .links-wrap {
+      animation: vh-reveal 0.5s ease-out 0.16s both;
+    }
+
+    footer {
+      animation: vh-reveal 0.5s ease-out 0.24s both;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <div id="clock">00<span class="colon">:</span>00<span class="colon">:</span>00</div>
+      <div id="date-line"></div>
+      <div id="greeting"></div>
+    </header>
+
+    <div id="vomnibar-slot">
+      <span class="placeholder">Press o to search</span>
+    </div>
+
+    <section class="links-wrap">
+      <h2 class="links-title">Quick Links</h2>
+      <div id="quick-links"></div>
+      <div id="link-form">
+        <input id="link-label-input" type="text" placeholder="Name" spellcheck="false" autocomplete="off">
+        <input id="link-url-input" type="text" placeholder="URL https://…" spellcheck="false" autocomplete="off">
+        <button id="link-save-button" type="button">Save</button>
+        <button id="link-cancel-button" type="button">Cancel</button>
+      </div>
+    </section>
+
+    <footer>
+      <span id="footer-hint">vimium-homepage · embedded Vimium Vomnibar · press o</span>
+    </footer>
+  </main>
+
+  <script>
+    (function () {
+      'use strict';
+
+      var WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      var LINKS_KEY = 'vimium-homepage-links';
+      var DEFAULT_LINKS = [
+        { label: 'GitHub', url: 'https://github.com/' },
+        { label: 'Gmail', url: 'https://mail.google.com/' },
+        { label: 'YouTube', url: 'https://www.youtube.com/' },
+        { label: 'Zhihu', url: 'https://www.zhihu.com/' },
+        { label: 'Bilibili', url: 'https://www.bilibili.com/' },
+        { label: 'Juejin', url: 'https://juejin.cn/' }
+      ];
+
+      // ---- clock / greeting / date --------------------------------------
+      var clockEl = document.getElementById('clock');
+      var dateEl = document.getElementById('date-line');
+      var greetingEl = document.getElementById('greeting');
+
+      function pad(n) {
+        return n < 10 ? '0' + n : String(n);
+      }
+
+      function greetingFor(h) {
+        if (h >= 5 && h < 12) {
+          return 'Good morning';
+        }
+        if (h >= 12 && h < 18) {
+          return 'Good afternoon';
+        }
+        if (h >= 18 && h < 23) {
+          return 'Good evening';
+        }
+        return 'Late night';
+      }
+
+      function tick() {
+        var now = new Date();
+        clockEl.innerHTML =
+          pad(now.getHours()) +
+          '<span class="colon">:</span>' +
+          pad(now.getMinutes()) +
+          '<span class="colon">:</span>' +
+          pad(now.getSeconds());
+        dateEl.textContent =
+          MONTHS[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear() + ' · ' + WEEKDAYS[now.getDay()];
+        greetingEl.textContent = greetingFor(now.getHours());
+      }
+
+      tick();
+      setInterval(tick, 1000);
+
+      // ---- quick links ----------------------------------------------------
+      var linksEl = document.getElementById('quick-links');
+      var formEl = document.getElementById('link-form');
+      var labelInput = document.getElementById('link-label-input');
+      var urlInput = document.getElementById('link-url-input');
+      var editingIndex = -1;
+
+      function isSafeLinkUrl(u) {
+        try {
+          var proto = new URL(u).protocol;
+          return proto === 'http:' || proto === 'https:';
+        } catch (e) {
+          return false;
+        }
+      }
+
+      function loadLinks() {
+        try {
+          var raw = localStorage.getItem(LINKS_KEY);
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              return parsed.filter(function (l) {
+                return (
+                  l &&
+                  typeof l.label === 'string' &&
+                  typeof l.url === 'string' &&
+                  isSafeLinkUrl(l.url)
+                );
+              });
+            }
+          }
+        } catch (e) {
+          // fall through to defaults
+        }
+        return DEFAULT_LINKS.slice();
+      }
+
+      function saveLinks(links) {
+        localStorage.setItem(LINKS_KEY, JSON.stringify(links));
+      }
+
+      var links = loadLinks();
+
+      function hostOf(url) {
+        try {
+          return new URL(url).hostname;
+        } catch (e) {
+          var s = String(url).replace(/^https?:\/\//i, '');
+          return s.length > 32 ? s.slice(0, 32) + '…' : s;
+        }
+      }
+
+      function openForm(index) {
+        editingIndex = index;
+        if (index >= 0) {
+          labelInput.value = links[index].label;
+          urlInput.value = links[index].url;
+        } else {
+          labelInput.value = '';
+          urlInput.value = '';
+        }
+        formEl.classList.add('open');
+        labelInput.focus();
+      }
+
+      function closeForm() {
+        formEl.classList.remove('open');
+        editingIndex = -1;
+      }
+
+      function commitForm() {
+        var label = labelInput.value.trim();
+        var url = urlInput.value.trim();
+        if (!label || !url) {
+          return;
+        }
+        if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) {
+          url = 'https://' + url;
+        }
+        var parsedUrl;
+        try {
+          parsedUrl = new URL(url);
+        } catch (e) {
+          return;
+        }
+        if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+          return;
+        }
+        if (editingIndex >= 0) {
+          links[editingIndex] = { label: label, url: url };
+        } else {
+          links.push({ label: label, url: url });
+        }
+        saveLinks(links);
+        renderLinks();
+        closeForm();
+      }
+
+      function renderLinks() {
+        linksEl.innerHTML = '';
+        links.forEach(function (link, i) {
+          var card = document.createElement('a');
+          card.className = 'link-card';
+          card.href = link.url;
+          card.target = '_blank';
+          card.rel = 'noopener';
+
+          var label = document.createElement('span');
+          label.className = 'link-label';
+          label.textContent = link.label;
+
+          var host = document.createElement('span');
+          host.className = 'link-host';
+          host.textContent = hostOf(link.url);
+
+          var actions = document.createElement('span');
+          actions.className = 'link-actions';
+
+          var editBtn = document.createElement('button');
+          editBtn.type = 'button';
+          editBtn.className = 'link-edit';
+          editBtn.textContent = 'Edit';
+          editBtn.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            openForm(i);
+          });
+
+          var delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.className = 'link-delete';
+          delBtn.textContent = 'Delete';
+          delBtn.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            links.splice(i, 1);
+            saveLinks(links);
+            renderLinks();
+          });
+
+          actions.appendChild(editBtn);
+          actions.appendChild(delBtn);
+          card.appendChild(label);
+          card.appendChild(host);
+          card.appendChild(actions);
+          linksEl.appendChild(card);
+        });
+
+        var addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.id = 'add-link-button';
+        addBtn.textContent = '＋ Add';
+        addBtn.addEventListener('click', function () {
+          openForm(-1);
+        });
+        linksEl.appendChild(addBtn);
+      }
+
+      document.getElementById('link-save-button').addEventListener('click', commitForm);
+      document.getElementById('link-cancel-button').addEventListener('click', closeForm);
+      labelInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commitForm();
+        }
+      });
+      urlInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commitForm();
+        }
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && formEl.classList.contains('open')) {
+          closeForm();
+        }
+      });
+
+      renderLinks();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Vimium Homepage Settings</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0e14;
+      --panel: #12161f;
+      --text: #e6e6e6;
+      --weak: #8b93a7;
+      --amber: #ffb000;
+      --green: #00e5a0;
+      --divider: rgba(230, 230, 230, 0.08);
+      --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 48px 20px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      display: flex;
+      justify-content: center;
+    }
+    .card {
+      width: 100%;
+      max-width: 560px;
+      background: var(--panel);
+      border: 1px solid var(--divider);
+      border-radius: 12px;
+      padding: 28px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      letter-spacing: 0.1em;
+      color: var(--amber);
+    }
+    .hint {
+      margin: 0 0 24px;
+      font-size: 12px;
+      color: var(--weak);
+      line-height: 1.7;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--weak);
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg);
+      border: 1px solid var(--divider);
+      border-radius: 8px;
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--amber);
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-top: 16px;
+    }
+    button {
+      padding: 9px 22px;
+      background: var(--green);
+      border: 1px solid var(--green);
+      border-radius: 8px;
+      color: #06120d;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+    }
+    #status {
+      font-size: 12px;
+      letter-spacing: 0.06em;
+    }
+    #status.ok {
+      color: var(--green);
+    }
+    #status.err {
+      color: #ff5f56;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>VIMIUM HOMEPAGE SETTINGS</h1>
+    <p class="hint">
+      The new tab first shows this extension's launch page, then immediately
+      redirects to the target address below. Enter the hosted page URL (default:
+      GitHub Pages) and end it with a slash.
+    </p>
+    <label for="target-url">Target URL</label>
+    <input id="target-url" type="url" placeholder="https://tenfyzhong.github.io/vimium-homepage/" spellcheck="false" autocomplete="off">
+    <div class="row">
+      <button id="save" type="button">Save</button>
+      <span id="status" role="status"></span>
+    </div>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>

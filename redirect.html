@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Vimium Homepage</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0e14;
+      --panel: #12161f;
+      --text: #e6e6e6;
+      --weak: #8b93a7;
+      --amber: #ffb000;
+      --green: #00e5a0;
+      --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .splash {
+      text-align: center;
+      letter-spacing: 0.18em;
+    }
+    .splash .mark {
+      font-size: 15px;
+      color: var(--amber);
+      font-weight: 700;
+    }
+    .splash .bar {
+      width: 180px;
+      height: 2px;
+      margin: 14px auto 0;
+      background: rgba(230, 230, 230, 0.08);
+      overflow: hidden;
+      border-radius: 1px;
+    }
+    .splash .bar::after {
+      content: '';
+      display: block;
+      width: 40%;
+      height: 100%;
+      background: var(--green);
+      animation: vh-load 1s ease-in-out infinite;
+    }
+    @keyframes vh-load {
+      from {
+        transform: translateX(-100%);
+      }
+      to {
+        transform: translateX(350%);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="splash">
+    <div class="mark">VIMIUM HOMEPAGE</div>
+    <div class="bar"></div>
+  </div>
+  <script src="redirect.js"></script>
+</body>
+</html>
